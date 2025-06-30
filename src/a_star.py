@@ -7,24 +7,29 @@ def manhattan_distance(a, b):
 def astar(graph, start, end):
     start_time = time.time()
 
-    visited = set()
+    open_set = []
+    # f(n), h(n), current -> desempate por h(n)
+    heapq.heappush(open_set, (0 + manhattan_distance(start, end), manhattan_distance(start, end), start))
+
     came_from = {}
     g_score = {start: 0}
-    f_score = {start: manhattan_distance(start, end)}
+    visited = set()
+    in_open_set = {start}
 
-    queue = [(f_score[start], start)]
-
-    while queue:
-        _, current = heapq.heappop(queue)
-
-        if current in visited:
-            continue
-        visited.add(current)
+    while open_set:
+        _, _, current = heapq.heappop(open_set)
+        in_open_set.discard(current)
 
         if current == end:
             break
 
-        for neighbor in graph.neighbors(current):
+        visited.add(current)
+
+        # Ordenar vizinhos priorizando direção ao destino
+        neighbors = list(graph.neighbors(current))
+        neighbors.sort(key=lambda n: manhattan_distance(n, end))  # Prioriza mais próximos primeiro
+
+        for neighbor in neighbors:
             if neighbor in visited:
                 continue
 
@@ -33,12 +38,16 @@ def astar(graph, start, end):
             if neighbor not in g_score or tentative_g < g_score[neighbor]:
                 came_from[neighbor] = current
                 g_score[neighbor] = tentative_g
-                f_score[neighbor] = tentative_g + manhattan_distance(neighbor, end)
-                heapq.heappush(queue, (f_score[neighbor], neighbor))
+                h = manhattan_distance(neighbor, end)
+                f = tentative_g + h
+
+                if neighbor not in in_open_set:
+                    heapq.heappush(open_set, (f, h, neighbor))  # f como prioridade principal, h como desempate
+                    in_open_set.add(neighbor)
 
     elapsed = time.time() - start_time
 
-    # Reconstruir o caminho
+    # Reconstrução do caminho
     path = []
     if end in came_from or start == end:
         node = end

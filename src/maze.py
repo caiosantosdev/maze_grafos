@@ -1,45 +1,73 @@
 import sys
+import json
+import os
 from matplotlib import pyplot as plt
 from a_star import astar
 from dijkstra import dijkstra_custom
 from matriz_utils import build_graph, gerar_matriz_labirinto, salvar_matriz_como_json
-
-
 class MazeVisualizer:
     def __init__(self, reuse_maze=False, existing_maze=None):
-        print("[INIT] Inicializando MazeVisualizer")
-        self.rows = 60
-        self.cols = 60
-        self.maze = existing_maze 
-        if reuse_maze and existing_maze:
-            self.maze = existing_maze
-        else:
-            self.maze = gerar_matriz_labirinto(self.rows, self.cols, 0.2)
-            salvar_matriz_como_json(self.maze)
-        print("[INIT] Labirinto gerado ou reutilizado")
+        self.jaCarregouMaze = False
+        self.rows = 30
+        self.cols = 30
+        self.maze = existing_maze if reuse_maze and existing_maze else gerar_matriz_labirinto(self.rows, self.cols, 0.2)
         self.graph = build_graph(self.maze)
-        self.algoritmo = None
-        print("[INIT] Grafo construído")
         self.reset_estado()
         self.fig, self.ax = plt.subplots(figsize=(8, 8))
         self.cid = self.fig.canvas.mpl_connect('button_press_event', self.onclick)
         self.menu_algoritmo()
 
     def reset_estado(self):
-        print("[RESET] Resetando estado...")
         self.start = None
         self.end = None
         self.path = None
         self.visited = None
-        # ** Atenção **: não resetar self.algoritmo aqui para não perder o algoritmo selecionado
-        print(f"[RESET] Estado após reset: start={self.start}, end={self.end}, path={self.path}, visited={self.visited}, algoritmo={self.algoritmo}")
+        self.algoritmo = None
 
     def menu_algoritmo(self):
+        if not self.jaCarregouMaze:
+            self.jaCarregouMaze = True
+            opcao_labirinto = input("Deseja gerar um novo labirinto? (s/n): ").strip().lower()
+            if opcao_labirinto == 's':
+                try:
+                    self.rows = int(input("Digite o número de linhas: ").strip())
+                    self.cols = int(input("Digite o número de colunas: ").strip())
+                    densidade = float(input("Digite a densidade de obstáculos (0 a 1): ").strip())
+                    if not (0 <= densidade <= 1):
+                        raise ValueError
+                except ValueError:
+                    print("Entrada inválida. Usando valores padrão: 30x30 e densidade 0.2")
+                    self.rows, self.cols, densidade = 30, 30, 0.2
+
+                self.maze = gerar_matriz_labirinto(self.rows, self.cols, densidade)
+                salvar = input("Deseja salvar este labirinto? (s/n): ").strip().lower()
+                if salvar == 's':
+                    salvar_matriz_como_json(self.maze)
+                self.graph = build_graph(self.maze)
+
+            else:
+                nome_labirinto = input("Digite o nome do labirinto (sem .json): ").strip().lower()
+                caminho_arquivo = f"labirintos/{nome_labirinto}.json"
+                if os.path.exists(caminho_arquivo):
+                    with open(caminho_arquivo, 'r') as f:
+                        self.maze = json.load(f)
+                        self.rows = len(self.maze)
+                        self.cols = len(self.maze[0])
+                        self.graph = build_graph(self.maze)
+                        print("Labirinto carregado com sucesso.")
+                        
+                else:
+                    print("Arquivo não encontrado. Gerando novo labirinto padrão.")
+                    self.rows, self.cols = 30, 30
+                    self.maze = gerar_matriz_labirinto(self.rows, self.cols, 0.2)
+                    self.graph = build_graph(self.maze)
+                
+
+        self.reset_estado()
         opcoes = {"1": "Dijkstra", "2": "A*"}
         while True:
-            escolha = input("Digite 1 para Dijkstra ou 2 para A*:\n(Digite R para reiniciar labirinto)\n(Digite Q para sair do programa\n)> ").strip()
+            escolha = input("Digite 1 para Dijkstra ou 2 para A*: (Digite R para reiniciar labirinto ou Q para sair)> ").strip()
             if escolha.upper() == 'R':
-                print("[MENU] Reiniciando labirinto...")
                 self.__init__()  # Gera novo labirinto
                 self.draw_maze()
                 plt.title("Clique para escolher o ponto de INÍCIO e depois o FIM")
@@ -49,18 +77,14 @@ class MazeVisualizer:
                 print("Encerrando o programa.")
                 sys.exit()
             elif escolha in opcoes:
-                print(f"[MENU] Algoritmo selecionado: {opcoes[escolha]}")
                 self.algoritmo = opcoes[escolha]
-                self.reset_estado()  # Resetar mas mantendo algoritmo selecionado
+                self.reset_estado()
                 self.draw_maze()
                 plt.title("Clique para escolher o ponto de INÍCIO e depois o FIM")
                 plt.show()
                 break
-            else:
-                print("[MENU] Opção inválida, tente novamente.")
 
     def draw_maze(self):
-        print("[DRAW] Atualizando visual do labirinto")
         self.ax.clear()
         for r in range(self.rows):
             for c in range(self.cols):
@@ -85,37 +109,33 @@ class MazeVisualizer:
         self.ax.set_xticks([])
         self.ax.set_yticks([])
         self.fig.canvas.draw()
-
     def onclick(self, event):
         if event.inaxes != self.ax:
             return
         col = int(event.xdata)
         row = self.rows - int(event.ydata) - 1
         if self.maze[row][col] == 1:
-            print("[CLICK] Célula bloqueada. Escolha uma célula livre.")
+            print("Célula bloqueada. Escolha uma célula livre.")
             return
 
         pos = (row, col)
         if not self.start:
             self.start = pos
-            print(f"[CLICK] Início definido em {pos}")
+            print(f"Início definido em {pos}")
         elif not self.end:
             self.end = pos
-            print(f"[CLICK] Fim definido em {pos}")
-            print(f"[CLICK] Executando algoritmo {self.algoritmo} com start={self.start} e end={self.end}")
+            print(f"Fim definido em {pos}")
             self.executar_algoritmo()
         self.draw_maze()
 
     def executar_algoritmo(self):
         if self.algoritmo == "Dijkstra":
-            print("[EXEC] Rodando Dijkstra...")
             self.path, elapsed, self.visited = dijkstra_custom(self.graph, self.start, self.end)
         else:
-            print("[EXEC] Rodando A*...")
             self.path, elapsed, self.visited = astar(self.graph, self.start, self.end)
 
         if not self.path:
-            print("[EXEC] Nenhum caminho encontrado.")
+            print("Nenhum caminho encontrado.")
         else:
             print(f"\n--- Resultado com {self.algoritmo} ---")
             print(f"Tamanho do caminho: {len(self.path) - 1}")

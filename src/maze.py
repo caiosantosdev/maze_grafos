@@ -22,7 +22,7 @@ class MazeVisualizer:
         self.end = None
         self.path = None
         self.visited = None
-        self.algoritmo = None
+        
 
     def menu_algoritmo(self):
         if not self.jaCarregouMaze:

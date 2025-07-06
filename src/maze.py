@@ -108,6 +108,13 @@ class MazeVisualizer:
         self.ax.set_aspect('equal')
         self.ax.set_xticks([])
         self.ax.set_yticks([])
+        def custom_format_coord(x, y):
+            col = int(x)
+            row = self.rows - int(y) - 1
+            return f"linha={row}, coluna={col}"
+
+        self.ax.format_coord = custom_format_coord
+
         self.fig.canvas.draw()
     def onclick(self, event):
         if event.inaxes != self.ax:

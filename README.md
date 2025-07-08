@@ -9,8 +9,11 @@
   O nome dos arquivos tem formato: labirinto_ANOMESDIA_HORAMINUTOSEGUNDO.json
 
   Labirinto 15x15: labirinto_20250702_232958.json
+  
   Labirinto 30x30: labirinto_20250705_195953.json
+  
   Labirinto 60x60: labirinto_20250630_122452.json
+  
 
 ### src/
   Utilizado para armazenar os códigos utilizando na análise comparativa.
